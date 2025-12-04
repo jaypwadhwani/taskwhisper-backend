@@ -1,0 +1,15 @@
+# Environment variables (contains API keys)
+.env
+
+# Dependencies
+node_modules/
+
+# Uploaded files
+uploads/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+
