@@ -61,7 +61,7 @@
             const mediaRecorderRef = useRef(null);
             const audioChunksRef = useRef([]);
 
-            const API_URL = 'http://localhost:3001';
+            const API_URL = 'https://taskwhisper-backend-production.up.railway.app';
 
             useEffect(() => {
               return () => {
@@ -244,12 +244,12 @@
                   </div>
                 </header>
 
-                <main className="max-w-3xl mx-auto px-6 py-16">
-                  <div className="mb-20 text-center">
-                    <h2 className="text-5xl font-bold mb-6">
+                <main className="max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-16">
+                  <div className="mb-10 md:mb-20 text-center">
+                    <h2 className="text-2xl md:text-5xl font-bold mb-4 md:mb-6">
                       Capture a thought.<br/>Turn it into an email reminder.
                     </h2>
-                    <p className={`text-xl ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <p className={`text-base md:text-xl ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       Record a voice memo and schedule when you need to hear it again.
                     </p>
                   </div>
@@ -260,7 +260,7 @@
                     </div>
                   )}
 
-                  <div className={`mb-16 p-12 rounded-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-gray-50 border border-gray-100'}`}>
+                  <div className={`mb-8 md:mb-16 p-6 md:p-12 rounded-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-gray-50 border border-gray-100'}`}>
                     <div className="flex flex-col items-center">
                       <button
                         onClick={isRecording ? stopRecording : startRecording}
@@ -346,17 +346,21 @@
                           <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>✉️ Email Draft:</h4>
                           <p className={`italic mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{claudeAnalysis.emailDraft}</p>
                           
-                          <div className="flex gap-3 mb-3">
+                          <div className="flex flex-col md:flex-row gap-3 mb-3">
                             <input
                               type="email"
-                              value={userEmail || 'jay.p.wadhwani@gmail.com'}
+                              value={userEmail}
                               onChange={(e) => setUserEmail(e.target.value)}
                               placeholder="Enter your email to send"
-                              className={`flex-1 px-4 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                              className={`flex-1 px-4 py-3 rounded-lg border text-base ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
                             />
                             <button
                               onClick={async () => {
-                                const emailToSend = userEmail || 'jay.p.wadhwani@gmail.com';
+                                if (!userEmail) {
+                                  setBackendError('❌ Please enter an email address');
+                                  return;
+                                }
+                                const emailToSend = userEmail;
                                 
                                 try {
                                   setIsAnalyzing(true);
@@ -391,13 +395,13 @@
                                 }
                               }}
                               disabled={isAnalyzing}
-                              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                              className={`w-full md:w-auto px-6 py-3 rounded-lg font-medium transition-colors text-base ${
                                 isAnalyzing 
                                   ? 'bg-purple-400 cursor-wait text-white' 
                                   : 'bg-purple-600 hover:bg-purple-700 text-white'
                               }`}
                             >
-                              {isAnalyzing ? '⏳ Sending...' : '📧 Send Immediately'}
+                              {isAnalyzing ? '⏳ Sending...' : '📧 Send Email'}
                             </button>
                           </div>
                           
@@ -418,8 +422,8 @@
                   </div>
 
                   {currentTranscript && !isTranscribing && (
-                    <div ref={scheduleRef} className={`mb-16 p-12 rounded-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-gray-50 border border-gray-100'}`}>
-                      <h3 className="text-2xl font-semibold mb-8">📅 Schedule your reminder</h3>
+                    <div ref={scheduleRef} className={`mb-8 md:mb-16 p-6 md:p-12 rounded-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-gray-50 border border-gray-100'}`}>
+                      <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8">📅 Schedule your reminder</h3>
 
                       <div className="mb-6">
                         <label className="block text-sm font-medium mb-3">Notification method</label>
