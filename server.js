@@ -5,12 +5,19 @@ const cors = require('cors');
 const multer = require('multer');
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
-const { Resend } = require('resend');  // ← NEW
+const { Resend } = require('resend');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Debug: Log which env vars are present (not their values)
+console.log('🔍 Environment check:');
+console.log('  OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  RESEND_API_KEY:', process.env.RESEND_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  PORT:', PORT);
 
 app.use(cors({
   origin: '*',
@@ -22,15 +29,15 @@ app.use(express.static('.'));
 const upload = multer({ dest: 'uploads/' });
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key-here'
+  apiKey: process.env.OPENAI_API_KEY || 'not-set'
 });
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
+  apiKey: process.env.ANTHROPIC_API_KEY || 'not-set'
 });
 
-// ← NEW: Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend (with fallback to prevent crash)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 app.get('/', (req, res) => {
   res.json({ 
