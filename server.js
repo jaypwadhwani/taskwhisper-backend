@@ -247,7 +247,7 @@ app.post('/api/send-email', async (req, res) => {
 
     // Send email via Resend
     const data = await resend.emails.send({
-      from: 'TaskWhisper <onboarding@resend.dev>',  // Resend's verified domain
+      from: 'TaskWhisper <noreply@jaypwadhwani.com>',
       to: to,
       subject: subject || 'TaskWhisper Reminder',
       html: htmlContent,
