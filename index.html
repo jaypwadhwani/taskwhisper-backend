@@ -44,7 +44,6 @@
             const [currentTranscript, setCurrentTranscript] = useState('');
             const [isEditingTranscript, setIsEditingTranscript] = useState(false);
             const [userEmail, setUserEmail] = useState('');
-            const [fromEmail, setFromEmail] = useState(localStorage.getItem('fromEmail') || '');
             const [scheduleDate, setScheduleDate] = useState('');
             const [scheduleTime, setScheduleTime] = useState('09:00');
             const [notificationMethod, setNotificationMethod] = useState(['email']);
@@ -212,7 +211,11 @@
                     transcript: currentTranscript,
                     tasks: claudeAnalysis?.tasks || [],
                     emailDraft: claudeAnalysis?.emailDraft || '',
-                    scheduledFor: new Date(`${scheduleDate}T${scheduleTime}`).toISOString()
+                    scheduledFor: (() => {
+                    // Create date in user's local timezone, then convert to UTC
+                    const localDate = new Date(`${scheduleDate}T${scheduleTime}`);
+                    return localDate.toISOString();
+                  })()
                   })
                 });
 
@@ -249,7 +252,7 @@
 
             const isDisabled = () => {
               if (!currentTranscript || !scheduleDate) return true;
-              if (notificationMethod.includes('email') && (!userEmail || !fromEmail)) return true;
+              if (notificationMethod.includes('email') && !userEmail) return true;
               if (notificationMethod.includes('sms') && !phoneNumber) return true;
               return false;
             };
@@ -397,7 +400,7 @@
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                       to: emailToSend,
-                                      from: fromEmail || 'noreply@taskwhisper.app',
+                                      from: 'noreply@jaypwadhwani.com',
                                       subject: 'TaskWhisper Reminder - Your Tasks',
                                       emailBody: claudeAnalysis.emailDraft,
                                       tasks: claudeAnalysis.tasks
@@ -473,29 +476,16 @@
                       </div>
 
                       {notificationMethod.includes('email') && (
-                        <>
-                          <div className="mb-6">
-                            <label className="block text-sm font-medium mb-3">Your email (From)</label>
-                            <input
-                              type="email"
-                              value={fromEmail}
-                              onChange={(e) => setFromEmail(e.target.value)}
-                              placeholder="your-email@example.com"
-                              className={`w-full px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                            />
-                            <p className="text-xs text-gray-500 mt-2">This will be saved for next time</p>
-                          </div>
-                          <div className="mb-6">
-                            <label className="block text-sm font-medium mb-3">Send reminder to (To)</label>
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium mb-3">Send reminder to</label>
                             <input
                               type="email"
                               value={userEmail}
                               onChange={(e) => setUserEmail(e.target.value)}
-                              placeholder="recipient@example.com"
+                              placeholder="your-email@example.com"
                               className={`w-full px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
                             />
-                          </div>
-                        </>
+                        </div>
                       )}
 
                       {notificationMethod.includes('sms') && (
@@ -556,7 +546,6 @@
                                 <p className="text-lg mb-4">{memo.transcript}</p>
                                 <p className="text-sm text-gray-500">
                                   📅 {formatDate(memo.scheduledFor)} • {memo.methods.join(', ')}
-                                  {memo.fromEmail && <span> • From: {memo.fromEmail}</span>}
                                   {memo.toEmail && <span> • To: {memo.toEmail}</span>}
                                 </p>
                               </div>

@@ -282,7 +282,10 @@ app.post('/api/reminders', async (req, res) => {
   try {
     const { email, transcript, tasks, emailDraft, scheduledFor } = req.body;
 
-    console.log('📅 Saving reminder for:', email, 'scheduled:', scheduledFor);
+    const scheduledDate = new Date(scheduledFor);
+    console.log('📅 Saving reminder for:', email);
+    console.log('   Scheduled time (UTC):', scheduledFor);
+    console.log('   Scheduled time (local):', scheduledDate.toString());
 
     if (!supabase) {
       return res.status(500).json({ success: false, error: 'Database not configured' });
@@ -340,7 +343,10 @@ app.get('/api/reminders', async (req, res) => {
 // Check and send due reminders (called by cron)
 app.post('/api/reminders/send-due', async (req, res) => {
   try {
+    const now = new Date();
     console.log('⏰ Checking for due reminders...');
+    console.log('   Current time (UTC):', now.toISOString());
+    console.log('   Current time (local):', now.toString());
 
     if (!supabase || !resend) {
       return res.status(500).json({ success: false, error: 'Services not configured' });
@@ -351,7 +357,7 @@ app.post('/api/reminders/send-due', async (req, res) => {
       .from('reminders')
       .select('*')
       .eq('sent', false)
-      .lte('scheduled_for', new Date().toISOString());
+      .lte('scheduled_for', now.toISOString());
 
     if (error) throw error;
 
