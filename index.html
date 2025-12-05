@@ -45,10 +45,7 @@
             const [isEditingTranscript, setIsEditingTranscript] = useState(false);
             const [userEmail, setUserEmail] = useState('');
             const [scheduleDate, setScheduleDate] = useState('');
-            const [scheduleTime, setScheduleTime] = useState(() => {
-              const now = new Date();
-              return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            });
+            const [scheduleTime, setScheduleTime] = useState('');
             const [notificationMethod, setNotificationMethod] = useState(['email']);
             const [phoneNumber, setPhoneNumber] = useState('');
             const [recordingTime, setRecordingTime] = useState(0);
@@ -239,10 +236,7 @@
 
                 setCurrentTranscript('');
                 setScheduleDate('');
-                setScheduleTime(() => {
-                  const now = new Date();
-                  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                });
+                setScheduleTime('');
                 setUserEmail('');
                 setClaudeAnalysis(null);
                 setScheduleSuccess(true);
