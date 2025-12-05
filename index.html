@@ -180,13 +180,21 @@
                   
                   // Use Claude's suggested send time if available, otherwise use default
                   if (data.analysis.suggestedSendTime) {
+                    // Claude returns UTC, convert to user's local timezone
                     const suggestedDate = new Date(data.analysis.suggestedSendTime);
-                    const dateStr = `${suggestedDate.getFullYear()}-${String(suggestedDate.getMonth() + 1).padStart(2, '0')}-${String(suggestedDate.getDate()).padStart(2, '0')}`;
-                    const timeStr = `${String(suggestedDate.getHours()).padStart(2, '0')}:${String(suggestedDate.getMinutes()).padStart(2, '0')}`;
+                    // Use local date/time methods to get user's timezone
+                    const year = suggestedDate.getFullYear();
+                    const month = String(suggestedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(suggestedDate.getDate()).padStart(2, '0');
+                    const hours = String(suggestedDate.getHours()).padStart(2, '0');
+                    const minutes = String(suggestedDate.getMinutes()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    const timeStr = `${hours}:${minutes}`;
                     setScheduleDate(dateStr);
                     setScheduleTime(timeStr);
                     setIsSmartScheduled(true);
-                    console.log('📅 Using Claude\'s suggested time:', dateStr, timeStr);
+                    console.log('📅 Using Claude\'s suggested time (UTC):', data.analysis.suggestedSendTime);
+                    console.log('📅 Converted to local time:', dateStr, timeStr);
                   } else {
                     setIsSmartScheduled(false);
                     // Fallback to default: tomorrow at current time
@@ -538,19 +546,21 @@
                             }}
                             className={`flex-1 px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
                           />
-                          <input
-                            type="time"
-                            value={scheduleTime}
-                            onChange={(e) => {
-                              setScheduleTime(e.target.value);
-                              setIsSmartScheduled(false);
-                            }}
-                            className={`flex-1 px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                          />
+                          <div className="flex-1 flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={scheduleTime}
+                              onChange={(e) => {
+                                setScheduleTime(e.target.value);
+                                setIsSmartScheduled(false);
+                              }}
+                              className={`flex-1 px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+                            />
+                            <span className="text-xs text-gray-500 whitespace-nowrap">
+                              {Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
-                        </p>
                       </div>
 
                       {scheduleSuccess ? (

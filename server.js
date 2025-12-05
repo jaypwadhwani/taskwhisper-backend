@@ -172,7 +172,7 @@ Extract and return a JSON object with:
    - priority: "urgent", "normal", or "low" (be smart about this!)
    - category: "work", "personal", "health", "shopping", "calls", or "other"
 2. emailDraft: A personalized reminder email for the first/main task
-3. suggestedSendTime: ISO 8601 timestamp for when to send the reminder (calculate based on urgency and task type, relative to current time: ${new Date().toISOString()})
+3. suggestedSendTime: ISO 8601 timestamp in UTC for when to send the reminder. IMPORTANT: Calculate times as if the user is in a typical US timezone (EST/EDT). For example, if suggesting "tomorrow at 9am", calculate 9am EST converted to UTC. Current UTC time: ${new Date().toISOString()}
 
 Example format:
 {
