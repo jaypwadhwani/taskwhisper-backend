@@ -45,7 +45,10 @@
             const [isEditingTranscript, setIsEditingTranscript] = useState(false);
             const [userEmail, setUserEmail] = useState('');
             const [scheduleDate, setScheduleDate] = useState('');
-            const [scheduleTime, setScheduleTime] = useState('09:00');
+            const [scheduleTime, setScheduleTime] = useState(() => {
+              const now = new Date();
+              return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            });
             const [notificationMethod, setNotificationMethod] = useState(['email']);
             const [phoneNumber, setPhoneNumber] = useState('');
             const [recordingTime, setRecordingTime] = useState(0);
@@ -139,11 +142,14 @@
                   setCurrentTranscript(data.transcript);
                   setIsTranscribing(false);
 
-                  // Set default to 24 hours from now
-                  const tomorrow = new Date();
-                  tomorrow.setHours(tomorrow.getHours() + 24);
+                  // Set default to tomorrow at current time
+                  const now = new Date();
+                  const tomorrow = new Date(now);
+                  tomorrow.setDate(tomorrow.getDate() + 1);
                   const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+                  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                   setScheduleDate(dateStr);
+                  setScheduleTime(timeStr);
 
                   if (data.mock) {
                     setBackendError('⚠️ Using mock transcription.');
@@ -233,6 +239,10 @@
 
                 setCurrentTranscript('');
                 setScheduleDate('');
+                setScheduleTime(() => {
+                  const now = new Date();
+                  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                });
                 setUserEmail('');
                 setClaudeAnalysis(null);
                 setScheduleSuccess(true);
