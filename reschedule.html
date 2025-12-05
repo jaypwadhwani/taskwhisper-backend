@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reschedule Task - TaskWhisper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+    <h1 class="text-2xl font-bold mb-6 text-center">🔄 Reschedule Reminder</h1>
+    <div id="form">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-2">New Date & Time</label>
+        <div class="flex gap-2">
+          <input type="date" id="newDate" class="flex-1 px-4 py-2 border rounded-lg" required>
+          <input type="time" id="newTime" class="flex-1 px-4 py-2 border rounded-lg" required>
+        </div>
+      </div>
+      <button onclick="reschedule()" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
+        Reschedule
+      </button>
+    </div>
+    <div id="success" class="hidden text-center">
+      <div class="text-6xl mb-4">✅</div>
+      <h2 class="text-xl font-bold mb-4">Rescheduled!</h2>
+      <p class="text-gray-600 mb-6">Your reminder has been rescheduled. You'll receive a new email at the new time.</p>
+      <a href="/" class="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
+        Back to TaskWhisper
+      </a>
+    </div>
+  </div>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id') || window.location.pathname.split('/').pop();
+    
+    function reschedule() {
+      const date = document.getElementById('newDate').value;
+      const time = document.getElementById('newTime').value;
+      if (!date || !time) {
+        alert('Please select both date and time');
+        return;
+      }
+      
+      const scheduledFor = new Date(`${date}T${time}`).toISOString();
+      
+      fetch(`https://taskwhisper-backend-production.up.railway.app/api/reminders/${id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledFor })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          document.getElementById('form').classList.add('hidden');
+          document.getElementById('success').classList.remove('hidden');
+        } else {
+          alert('Failed to reschedule: ' + data.error);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+

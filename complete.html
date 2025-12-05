@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Completed - TaskWhisper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+    <div class="text-6xl mb-4">✅</div>
+    <h1 class="text-2xl font-bold mb-4">Task Marked Complete!</h1>
+    <p class="text-gray-600 mb-6">Great job! We won't send any more reminders for this task.</p>
+    <a href="/" class="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
+      Back to TaskWhisper
+    </a>
+  </div>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id') || window.location.pathname.split('/').pop();
+    if (id) {
+      fetch(`https://taskwhisper-backend-production.up.railway.app/api/reminders/${id}/complete`, {
+        method: 'POST'
+      }).then(() => {
+        console.log('Task marked complete');
+      });
+    }
+  </script>
+</body>
+</html>
+

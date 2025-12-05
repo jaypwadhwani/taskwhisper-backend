@@ -314,7 +314,10 @@ app.post('/api/reminders', async (req, res) => {
         tasks,
         email_draft: emailDraft,
         scheduled_for: scheduledFor,
-        sent: false
+        sent: false,
+        completed: false,
+        last_followup_sent: null,
+        followup_count: 0
       })
       .select()
       .single();
@@ -351,6 +354,68 @@ app.get('/api/reminders', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error fetching reminders:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mark reminder as completed
+app.post('/api/reminders/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('✅ Marking reminder as complete:', id);
+
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase
+      .from('reminders')
+      .update({ completed: true })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Reminder marked complete');
+    res.json({ success: true, reminder: data });
+
+  } catch (error) {
+    console.error('❌ Error completing reminder:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reschedule a reminder
+app.post('/api/reminders/:id/reschedule', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { scheduledFor } = req.body;
+    console.log('🔄 Rescheduling reminder:', id, 'to', scheduledFor);
+
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase
+      .from('reminders')
+      .update({ 
+        scheduled_for: scheduledFor,
+        sent: false,
+        last_followup_sent: null,
+        followup_count: 0
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Reminder rescheduled');
+    res.json({ success: true, reminder: data });
+
+  } catch (error) {
+    console.error('❌ Error rescheduling reminder:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -429,6 +494,86 @@ app.post('/api/reminders/send-due', async (req, res) => {
       } catch (emailError) {
         console.error('❌ Failed to send reminder:', reminder.id, emailError);
         results.push({ id: reminder.id, status: 'failed', error: emailError.message });
+      }
+    }
+
+    // Check for reminders needing follow-ups
+    console.log('📧 Checking for reminders needing follow-ups...');
+    const followUpDelay = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const followUpCutoff = new Date(now.getTime() - followUpDelay).toISOString();
+
+    const { data: followUpReminders, error: followUpError } = await supabase
+      .from('reminders')
+      .select('*')
+      .eq('sent', true)
+      .eq('completed', false)
+      .or(`last_followup_sent.is.null,last_followup_sent.lt.${followUpCutoff}`)
+      .lte('scheduled_for', followUpCutoff);
+
+    if (followUpError) {
+      console.error('❌ Error fetching follow-up reminders:', followUpError);
+    } else {
+      console.log(`📬 Found ${followUpReminders?.length || 0} reminders needing follow-ups`);
+
+      for (const reminder of followUpReminders || []) {
+        try {
+          const baseUrl = process.env.FRONTEND_URL || 'https://www.jaypwadhwani.com';
+          const completeUrl = `${baseUrl}/complete.html?id=${reminder.id}`;
+          const rescheduleUrl = `${baseUrl}/reschedule.html?id=${reminder.id}`;
+
+          const tasksHtml = (reminder.tasks || []).map(task => `
+            <div style="background: #f9f9f9; border-left: 4px solid #667eea; padding: 15px; margin: 10px 0; border-radius: 5px;">
+              <h3 style="margin: 0 0 10px 0; color: #333;">${task.description}</h3>
+            </div>
+          `).join('');
+
+          const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+              <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 28px;">🤔 TaskWhisper Follow-up</h1>
+                </div>
+                <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+                  <p style="font-size: 16px; color: #666; margin-bottom: 20px;">
+                    Hey! Did you complete your task? If not, I can remind you again!
+                  </p>
+                  ${tasksHtml}
+                  <div style="margin-top: 30px; text-align: center;">
+                    <a href="${completeUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 0 10px; font-weight: 600;">✅ Done</a>
+                    <a href="${rescheduleUrl}" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 0 10px; font-weight: 600;">🔄 Reschedule</a>
+                  </div>
+                  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #999; font-size: 14px;">
+                    <p>Sent from TaskWhisper</p>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `;
+
+          await resend.emails.send({
+            from: 'TaskWhisper <noreply@jaypwadhwani.com>',
+            to: reminder.email,
+            subject: 'Did you complete your task?',
+            html: htmlContent,
+          });
+
+          // Update follow-up tracking
+          await supabase
+            .from('reminders')
+            .update({ 
+              last_followup_sent: now.toISOString(),
+              followup_count: (reminder.followup_count || 0) + 1
+            })
+            .eq('id', reminder.id);
+
+          console.log('✅ Sent follow-up to:', reminder.email);
+          results.push({ id: reminder.id, status: 'followup_sent' });
+
+        } catch (followUpError) {
+          console.error('❌ Failed to send follow-up:', reminder.id, followUpError);
+          results.push({ id: reminder.id, status: 'followup_failed', error: followUpError.message });
+        }
       }
     }
 
