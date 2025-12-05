@@ -148,29 +148,44 @@ app.post('/api/analyze-memo', async (req, res) => {
       max_tokens: 1000,
       messages: [{
         role: 'user',
-        content: `You are an intelligent task analyzer. Analyze this voice memo transcript and extract actionable information.
+        content: `You are an intelligent task analyzer with smart prioritization. Analyze this voice memo transcript and extract actionable information.
 
 Transcript: "${transcript}"
+
+Analyze urgency based on:
+- Keywords: "urgent", "ASAP", "deadline", "important", "critical", "emergency" = urgent
+- Time sensitivity: tasks with specific deadlines or time constraints
+- Task type: health/medical = often urgent, shopping = usually normal/low
+- Context clues: "don't forget", "make sure", "remember" = normal priority
+
+Suggest optimal send time based on:
+- Urgent tasks: Send 1-2 hours before needed (or immediately if very urgent)
+- Work tasks: Send on weekday mornings (9am-10am) or 1 hour before work day starts
+- Personal tasks: Send in evening (6pm-8pm) or morning (8am-9am)
+- Health tasks: Send 1 day before or morning of
+- Shopping: Send morning of or 1 day before
 
 Extract and return a JSON object with:
 1. tasks: Array of task objects, each with:
    - description: Clear task description
-   - suggestedDate: Suggested date/time (or "Not specified")
-   - priority: "urgent", "normal", or "low"
+   - suggestedDate: Human-readable date/time (e.g., "Tomorrow morning", "Monday at 9am")
+   - priority: "urgent", "normal", or "low" (be smart about this!)
    - category: "work", "personal", "health", "shopping", "calls", or "other"
 2. emailDraft: A personalized reminder email for the first/main task
+3. suggestedSendTime: ISO 8601 timestamp for when to send the reminder (calculate based on urgency and task type, relative to current time: ${new Date().toISOString()})
 
 Example format:
 {
   "tasks": [
     {
-      "description": "Call mom to check in",
-      "suggestedDate": "Today evening",
-      "priority": "normal",
-      "category": "calls"
+      "description": "Call doctor - urgent appointment",
+      "suggestedDate": "Tomorrow at 2pm",
+      "priority": "urgent",
+      "category": "health"
     }
   ],
-  "emailDraft": "Hi! Just a friendly reminder to call your mom this evening. She'd love to hear from you!"
+  "emailDraft": "Hi! Just a friendly reminder about your doctor appointment tomorrow at 2pm. Don't forget to bring your insurance card!",
+  "suggestedSendTime": "2025-12-06T12:00:00.000Z"
 }
 
 Respond ONLY with valid JSON, no other text.`

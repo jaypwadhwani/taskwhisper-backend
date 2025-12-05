@@ -52,6 +52,7 @@
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [showToast, setShowToast] = useState(false);
             const [scheduleSuccess, setScheduleSuccess] = useState(false);
+            const [isSmartScheduled, setIsSmartScheduled] = useState(false);
             const [isTranscribing, setIsTranscribing] = useState(false);
             const [backendError, setBackendError] = useState(null);
             const [claudeAnalysis, setClaudeAnalysis] = useState(null);
@@ -139,20 +140,11 @@
                   setCurrentTranscript(data.transcript);
                   setIsTranscribing(false);
 
-                  // Set default to tomorrow at current time
-                  const now = new Date();
-                  const tomorrow = new Date(now);
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-                  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                  setScheduleDate(dateStr);
-                  setScheduleTime(timeStr);
-
                   if (data.mock) {
                     setBackendError('⚠️ Using mock transcription.');
                   }
 
-                  // Call Claude for analysis
+                  // Call Claude for analysis (will set smart schedule time)
                   callClaude(data.transcript);
 
                   setTimeout(() => scheduleRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
@@ -185,6 +177,27 @@
                 if (data.success) {
                   setClaudeAnalysis(data.analysis);
                   console.log('=== SUCCESS! Setting claudeAnalysis ===', data.analysis);
+                  
+                  // Use Claude's suggested send time if available, otherwise use default
+                  if (data.analysis.suggestedSendTime) {
+                    const suggestedDate = new Date(data.analysis.suggestedSendTime);
+                    const dateStr = `${suggestedDate.getFullYear()}-${String(suggestedDate.getMonth() + 1).padStart(2, '0')}-${String(suggestedDate.getDate()).padStart(2, '0')}`;
+                    const timeStr = `${String(suggestedDate.getHours()).padStart(2, '0')}:${String(suggestedDate.getMinutes()).padStart(2, '0')}`;
+                    setScheduleDate(dateStr);
+                    setScheduleTime(timeStr);
+                    setIsSmartScheduled(true);
+                    console.log('📅 Using Claude\'s suggested time:', dateStr, timeStr);
+                  } else {
+                    setIsSmartScheduled(false);
+                    // Fallback to default: tomorrow at current time
+                    const now = new Date();
+                    const tomorrow = new Date(now);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+                    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    setScheduleDate(dateStr);
+                    setScheduleTime(timeStr);
+                  }
                 } else {
                   setBackendError('Claude failed: ' + data.error);
                 }
@@ -239,6 +252,7 @@
                 setScheduleTime('');
                 setUserEmail('');
                 setClaudeAnalysis(null);
+                setIsSmartScheduled(false);
                 setScheduleSuccess(true);
                 setShowToast(true);
                 setTimeout(() => {
@@ -366,12 +380,12 @@
                               <p className={`font-medium mb-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{task.description}</p>
                               <div className="flex gap-3 text-sm flex-wrap">
                                 <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>📅 {task.suggestedDate}</span>
-                                <span className={`px-2 py-1 rounded ${
-                                  task.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-                                  task.priority === 'normal' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-700'
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  task.priority === 'urgent' ? 'bg-red-500 text-white animate-pulse' :
+                                  task.priority === 'normal' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                                 }`}>
-                                  {task.priority}
+                                  {task.priority === 'urgent' ? '⚡ URGENT' : task.priority}
                                 </span>
                                 <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>🏷️ {task.category}</span>
                               </div>
@@ -506,18 +520,31 @@
                       )}
 
                       <div className="mb-6">
-                        <label className="block text-sm font-medium mb-3">Date & Time</label>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-sm font-medium">Date & Time</label>
+                          {isSmartScheduled && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                              🧠 AI Scheduled
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-col md:flex-row gap-3">
                           <input
                             type="date"
                             value={scheduleDate}
-                            onChange={(e) => setScheduleDate(e.target.value)}
+                            onChange={(e) => {
+                              setScheduleDate(e.target.value);
+                              setIsSmartScheduled(false);
+                            }}
                             className={`flex-1 px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
                           />
                           <input
                             type="time"
                             value={scheduleTime}
-                            onChange={(e) => setScheduleTime(e.target.value)}
+                            onChange={(e) => {
+                              setScheduleTime(e.target.value);
+                              setIsSmartScheduled(false);
+                            }}
                             className={`flex-1 px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
                           />
                         </div>
