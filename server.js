@@ -6,6 +6,7 @@ const multer = require('multer');
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
 const { Resend } = require('resend');
+const twilio = require('twilio');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
@@ -23,6 +24,7 @@ console.log('🔍 Environment check:');
 console.log('  OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('  ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('  RESEND_API_KEY:', process.env.RESEND_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  TWILIO:', twilioClient ? '✅ Connected' : '❌ Missing');
 console.log('  SUPABASE:', supabase ? '✅ Connected' : '❌ Missing');
 console.log('  PORT:', PORT);
 
@@ -45,6 +47,11 @@ const anthropic = new Anthropic({
 
 // Initialize Resend (with fallback to prevent crash)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// Initialize Twilio
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
 
 app.get('/', (req, res) => {
   res.json({ 
@@ -295,7 +302,7 @@ app.post('/api/send-email', async (req, res) => {
 // Save a scheduled reminder
 app.post('/api/reminders', async (req, res) => {
   try {
-    const { email, transcript, tasks, emailDraft, scheduledFor } = req.body;
+    const { email, phoneNumber, transcript, tasks, emailDraft, scheduledFor, notificationMethods } = req.body;
 
     const scheduledDate = new Date(scheduledFor);
     console.log('📅 Saving reminder for:', email);
@@ -310,10 +317,12 @@ app.post('/api/reminders', async (req, res) => {
       .from('reminders')
       .insert({
         email,
+        phone_number: phoneNumber || null,
         transcript,
         tasks,
         email_draft: emailDraft,
         scheduled_for: scheduledFor,
+        notification_methods: notificationMethods || ['email'],
         sent: false,
         completed: false,
         last_followup_sent: null,
@@ -474,13 +483,30 @@ app.post('/api/reminders/send-due', async (req, res) => {
           </html>
         `;
 
-        // Send email
-        await resend.emails.send({
-          from: 'TaskWhisper <noreply@jaypwadhwani.com>',
-          to: reminder.email,
-          subject: 'TaskWhisper Reminder - Your Scheduled Tasks',
-          html: htmlContent,
-        });
+        const methods = reminder.notification_methods || ['email'];
+        const tasksText = (reminder.tasks || []).map(t => `• ${t.description}`).join('\n');
+        const smsBody = `🎤 TaskWhisper Reminder\n\n${reminder.email_draft || 'Your tasks:'}\n\n${tasksText}\n\nSent from TaskWhisper`;
+
+        // Send email if method includes email
+        if (methods.includes('email') && reminder.email) {
+          await resend.emails.send({
+            from: 'TaskWhisper <noreply@jaypwadhwani.com>',
+            to: reminder.email,
+            subject: 'TaskWhisper Reminder - Your Scheduled Tasks',
+            html: htmlContent,
+          });
+          console.log('✅ Sent email to:', reminder.email);
+        }
+
+        // Send SMS if method includes sms
+        if (methods.includes('sms') && reminder.phone_number && twilioClient) {
+          await twilioClient.messages.create({
+            body: smsBody,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: reminder.phone_number
+          });
+          console.log('✅ Sent SMS to:', reminder.phone_number);
+        }
 
         // Mark as sent
         await supabase
@@ -488,7 +514,6 @@ app.post('/api/reminders/send-due', async (req, res) => {
           .update({ sent: true })
           .eq('id', reminder.id);
 
-        console.log('✅ Sent reminder to:', reminder.email);
         results.push({ id: reminder.id, status: 'sent' });
 
       } catch (emailError) {

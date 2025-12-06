@@ -233,6 +233,7 @@
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     email: userEmail,
+                    phoneNumber: phoneNumber,
                     transcript: currentTranscript,
                     tasks: claudeAnalysis?.tasks || [],
                     emailDraft: claudeAnalysis?.emailDraft || '',
@@ -240,7 +241,8 @@
                     // Create date in user's local timezone, then convert to UTC
                     const localDate = new Date(`${scheduleDate}T${scheduleTime}`);
                     return localDate.toISOString();
-                  })()
+                  })(),
+                    notificationMethods: notificationMethod
                   })
                 });
 
