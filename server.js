@@ -500,12 +500,21 @@ app.post('/api/reminders/send-due', async (req, res) => {
 
         // Send SMS if method includes sms
         if (methods.includes('sms') && reminder.phone_number && twilioClient) {
+          // Format phone number to E.164 (safety net for old data)
+          const formatPhone = (phone) => {
+            if (!phone) return '';
+            const digits = phone.replace(/\D/g, '');
+            const withCountryCode = digits.startsWith('1') ? digits : `1${digits}`;
+            return `+${withCountryCode}`;
+          };
+          
+          const formattedPhone = formatPhone(reminder.phone_number);
           await twilioClient.messages.create({
             body: smsBody,
             from: process.env.TWILIO_PHONE_NUMBER,
-            to: reminder.phone_number
+            to: formattedPhone
           });
-          console.log('✅ Sent SMS to:', reminder.phone_number);
+          console.log('✅ Sent SMS to:', formattedPhone);
         }
 
         // Mark as sent

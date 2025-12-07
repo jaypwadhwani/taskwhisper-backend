@@ -233,7 +233,7 @@
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     email: userEmail,
-                    phoneNumber: phoneNumber,
+                    phoneNumber: phoneNumber ? formatPhoneNumber(phoneNumber) : '',
                     transcript: currentTranscript,
                     tasks: claudeAnalysis?.tasks || [],
                     emailDraft: claudeAnalysis?.emailDraft || '',
@@ -288,6 +288,17 @@
 
             const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             const formatTime = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+            
+            // Format phone number to E.164 (Twilio format: +1XXXXXXXXXX)
+            const formatPhoneNumber = (phone) => {
+              if (!phone) return '';
+              // Remove all non-digit characters
+              const digits = phone.replace(/\D/g, '');
+              // If it starts with 1, keep it; otherwise add 1
+              const withCountryCode = digits.startsWith('1') ? digits : `1${digits}`;
+              // Return in E.164 format
+              return `+${withCountryCode}`;
+            };
 
             return (
               <div className={isDarkMode ? 'bg-gray-950 text-white min-h-screen' : 'bg-white min-h-screen'}>
@@ -524,9 +535,12 @@
                             type="tel"
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="+1 (555) 123-4567"
+                            placeholder="(404) 729-0244 or 404-729-0244"
                             className={`w-full px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
                           />
+                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Any US format accepted (we'll format it automatically)
+                          </p>
                         </div>
                       )}
 
