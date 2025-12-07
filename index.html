@@ -63,6 +63,7 @@
             const scheduleRef = useRef(null);
             const mediaRecorderRef = useRef(null);
             const audioChunksRef = useRef([]);
+            const originalTranscriptRef = useRef('');
 
             const API_URL = 'https://taskwhisper-backend-production.up.railway.app';
 
@@ -139,6 +140,7 @@
 
                 if (data.success) {
                   setCurrentTranscript(data.transcript);
+                  originalTranscriptRef.current = data.transcript; // Save original for comparison
                   setIsTranscribing(false);
 
                   if (data.mock) {
@@ -368,7 +370,17 @@
                         <div className="flex justify-between items-center mb-4">
                           <h3 className="text-sm font-semibold uppercase text-gray-500">Transcription</h3>
                           <button
-                            onClick={() => setIsEditingTranscript(!isEditingTranscript)}
+                            onClick={async () => {
+                              if (isEditingTranscript) {
+                                // User is finishing editing - check if transcript changed
+                                if (currentTranscript !== originalTranscriptRef.current && currentTranscript.trim()) {
+                                  // Transcript was edited, re-analyze
+                                  originalTranscriptRef.current = currentTranscript;
+                                  await callClaude(currentTranscript);
+                                }
+                              }
+                              setIsEditingTranscript(!isEditingTranscript);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-sm ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'}`}
                           >
                             {isEditingTranscript ? '✓ Done' : '✏️ Edit'}
