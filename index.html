@@ -304,7 +304,11 @@
               <div className={isDarkMode ? 'bg-gray-950 text-white min-h-screen' : 'bg-white min-h-screen'}>
                 {showToast && (
                   <div className="fixed top-6 left-1/2 transform -translate-x-1/2 md:left-auto md:translate-x-0 md:right-6 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 text-center">
-                    ✅ Reminder scheduled! You'll receive an email at the scheduled time.
+                    ✅ Reminder scheduled! You'll receive {notificationMethod.includes('email') && notificationMethod.includes('sms') 
+                      ? 'an email and text' 
+                      : notificationMethod.includes('sms') 
+                        ? 'a text' 
+                        : 'an email'} at the scheduled time.
                   </div>
                 )}
 
