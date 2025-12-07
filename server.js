@@ -484,6 +484,7 @@ app.post('/api/reminders/send-due', async (req, res) => {
         `;
 
         const methods = reminder.notification_methods || ['email'];
+        console.log('📋 Reminder methods:', methods, 'Phone:', reminder.phone_number, 'Email:', reminder.email);
         const tasksText = (reminder.tasks || []).map(t => `• ${t.description}`).join('\n');
         const smsBody = `🎤 TaskWhisper Reminder\n\n${reminder.email_draft || 'Your tasks:'}\n\n${tasksText}\n\nSent from TaskWhisper`;
 
@@ -509,12 +510,19 @@ app.post('/api/reminders/send-due', async (req, res) => {
           };
           
           const formattedPhone = formatPhone(reminder.phone_number);
-          await twilioClient.messages.create({
-            body: smsBody,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: formattedPhone
-          });
-          console.log('✅ Sent SMS to:', formattedPhone);
+          console.log('📱 Attempting to send SMS to:', formattedPhone, '(original:', reminder.phone_number, ')');
+          
+          try {
+            const message = await twilioClient.messages.create({
+              body: smsBody,
+              from: process.env.TWILIO_PHONE_NUMBER,
+              to: formattedPhone
+            });
+            console.log('✅ Sent SMS to:', formattedPhone, '(SID:', message.sid, ')');
+          } catch (smsError) {
+            console.error('❌ Failed to send SMS to:', formattedPhone, 'Error:', smsError.message);
+            throw smsError; // Re-throw to be caught by outer try-catch
+          }
         }
 
         // Mark as sent
