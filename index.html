@@ -408,7 +408,7 @@
                           <h4 className={`font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>✉️ Email Draft:</h4>
                           <p className={`italic mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{claudeAnalysis.emailDraft}</p>
                           
-                          <div className="flex gap-3 mb-3">
+                          <div className="flex flex-col md:flex-row gap-3 mb-3">
                             <input
                               type="email"
                               value={userEmail || 'jay.p.wadhwani@gmail.com'}
@@ -453,7 +453,7 @@
                                 }
                               }}
                               disabled={isAnalyzing}
-                              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                              className={`w-full md:w-auto px-6 py-2 rounded-lg font-medium transition-colors ${
                                 isAnalyzing 
                                   ? 'bg-purple-400 cursor-wait text-white' 
                                   : 'bg-purple-600 hover:bg-purple-700 text-white'
