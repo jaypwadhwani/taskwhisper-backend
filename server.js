@@ -34,8 +34,15 @@ console.log('  SUPABASE:', supabase ? '✅ Connected' : '❌ Missing');
 console.log('  PORT:', PORT);
 
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST']
+  origin: [
+    'https://taskwhisper.jaypwadhwani.com',
+    'https://www.jaypwadhwani.com',
+    'https://jaypwadhwani.com',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
+  methods: ['GET', 'POST'],
+  credentials: true
 }));
 app.use(express.json());
 app.use(express.static('.'));
@@ -559,7 +566,7 @@ app.post('/api/reminders/send-due', async (req, res) => {
 
       for (const reminder of followUpReminders || []) {
         try {
-          const baseUrl = process.env.FRONTEND_URL || 'https://www.jaypwadhwani.com';
+          const baseUrl = process.env.FRONTEND_URL || 'https://taskwhisper.jaypwadhwani.com';
           const completeUrl = `${baseUrl}/complete.html?id=${reminder.id}`;
           const rescheduleUrl = `${baseUrl}/reschedule.html?id=${reminder.id}`;
 
