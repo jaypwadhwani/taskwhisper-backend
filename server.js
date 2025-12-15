@@ -6,7 +6,6 @@ const multer = require('multer');
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
 const { Resend } = require('resend');
-const twilio = require('twilio');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
@@ -19,17 +18,11 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
   : null;
 
-// Initialize Twilio
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
-
 // Debug: Log which env vars are present (not their values)
 console.log('🔍 Environment check:');
 console.log('  OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('  ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('  RESEND_API_KEY:', process.env.RESEND_API_KEY ? '✅ Set' : '❌ Missing');
-console.log('  TWILIO:', twilioClient ? '✅ Connected' : '❌ Missing');
 console.log('  SUPABASE:', supabase ? '✅ Connected' : '❌ Missing');
 console.log('  PORT:', PORT);
 
@@ -45,6 +38,8 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Serve static files (HTML, CSS, JS, images, etc.)
 app.use(express.static('.'));
 
 const upload = multer({ dest: 'uploads/' });
@@ -61,13 +56,22 @@ const anthropic = new Anthropic({
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 app.get('/', (req, res) => {
+  // Check if request wants HTML (like from a browser)
+  if (req.headers.accept && req.headers.accept.includes('text/html')) {
+    // Serve index.html if it exists
+    const indexPath = path.join(__dirname, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+  }
+  // Otherwise return JSON API info
   res.json({ 
     message: 'TaskWhisper backend is running!',
     endpoints: {
       health: '/api/health',
       transcribe: '/api/transcribe (POST with audio file)',
       analyzeMemo: '/api/analyze-memo (POST with transcript)',
-      sendEmail: '/api/send-email (POST with email data)'  // ← NEW
+      sendEmail: '/api/send-email (POST with email data)'
     }
   });
 });
@@ -309,7 +313,7 @@ app.post('/api/send-email', async (req, res) => {
 // Save a scheduled reminder
 app.post('/api/reminders', async (req, res) => {
   try {
-    const { email, phoneNumber, transcript, tasks, emailDraft, scheduledFor, notificationMethods } = req.body;
+    const { email, transcript, tasks, emailDraft, scheduledFor } = req.body;
 
     const scheduledDate = new Date(scheduledFor);
     console.log('📅 Saving reminder for:', email);
@@ -324,12 +328,12 @@ app.post('/api/reminders', async (req, res) => {
       .from('reminders')
       .insert({
         email,
-        phone_number: phoneNumber || null,
+        phone_number: null,
         transcript,
         tasks,
         email_draft: emailDraft,
         scheduled_for: scheduledFor,
-        notification_methods: notificationMethods || ['email'],
+        notification_methods: ['email'],
         sent: false,
         completed: false,
         last_followup_sent: null,
@@ -490,13 +494,8 @@ app.post('/api/reminders/send-due', async (req, res) => {
           </html>
         `;
 
-        const methods = reminder.notification_methods || ['email'];
-        console.log('📋 Reminder methods:', methods, 'Phone:', reminder.phone_number, 'Email:', reminder.email);
-        const tasksText = (reminder.tasks || []).map(t => `• ${t.description}`).join('\n');
-        const smsBody = `🎤 TaskWhisper Reminder\n\n${reminder.email_draft || 'Your tasks:'}\n\n${tasksText}\n\nSent from TaskWhisper`;
-
-        // Send email if method includes email
-        if (methods.includes('email') && reminder.email) {
+        // Send email
+        if (reminder.email) {
           await resend.emails.send({
             from: 'TaskWhisper <noreply@jaypwadhwani.com>',
             to: reminder.email,
@@ -504,32 +503,6 @@ app.post('/api/reminders/send-due', async (req, res) => {
             html: htmlContent,
           });
           console.log('✅ Sent email to:', reminder.email);
-        }
-
-        // Send SMS if method includes sms
-        if (methods.includes('sms') && reminder.phone_number && twilioClient) {
-          // Format phone number to E.164 (safety net for old data)
-          const formatPhone = (phone) => {
-            if (!phone) return '';
-            const digits = phone.replace(/\D/g, '');
-            const withCountryCode = digits.startsWith('1') ? digits : `1${digits}`;
-            return `+${withCountryCode}`;
-          };
-          
-          const formattedPhone = formatPhone(reminder.phone_number);
-          console.log('📱 Attempting to send SMS to:', formattedPhone, '(original:', reminder.phone_number, ')');
-          
-          try {
-            const message = await twilioClient.messages.create({
-              body: smsBody,
-              from: process.env.TWILIO_PHONE_NUMBER,
-              to: formattedPhone
-            });
-            console.log('✅ Sent SMS to:', formattedPhone, '(SID:', message.sid, ')');
-          } catch (smsError) {
-            console.error('❌ Failed to send SMS to:', formattedPhone, 'Error:', smsError.message);
-            throw smsError; // Re-throw to be caught by outer try-catch
-          }
         }
 
         // Mark as sent

@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TaskWhisper - Voice Memo Email Scheduler</title>
+    <title>TaskWhisper - Turn Voice Memos into Email Reminders</title>
+    <meta name="description" content="Record a voice memo and get it emailed back to you at the perfect time. AI-powered scheduling with Whisper and Claude." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -47,8 +48,6 @@
             const [userEmail, setUserEmail] = useState('');
             const [scheduleDate, setScheduleDate] = useState('');
             const [scheduleTime, setScheduleTime] = useState('');
-            const [notificationMethod, setNotificationMethod] = useState(['email']);
-            const [phoneNumber, setPhoneNumber] = useState('');
             const [recordingTime, setRecordingTime] = useState(0);
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [showToast, setShowToast] = useState(false);
@@ -222,8 +221,9 @@
             };
 
             const scheduleMemo = async () => {
-              if (!currentTranscript || !scheduleDate) return alert('Please complete all fields.');
-              if (notificationMethod.includes('email') && !userEmail) return alert('Please enter your email.');
+              if (!currentTranscript || !scheduleDate || !userEmail) {
+                return alert('Please enter your email and complete all fields.');
+              }
 
               try {
                 setIsAnalyzing(true);
@@ -235,7 +235,6 @@
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     email: userEmail,
-                    phoneNumber: phoneNumber ? formatPhoneNumber(phoneNumber) : '',
                     transcript: currentTranscript,
                     tasks: claudeAnalysis?.tasks || [],
                     emailDraft: claudeAnalysis?.emailDraft || '',
@@ -243,8 +242,7 @@
                     // Create date in user's local timezone, then convert to UTC
                     const localDate = new Date(`${scheduleDate}T${scheduleTime}`);
                     return localDate.toISOString();
-                  })(),
-                    notificationMethods: notificationMethod
+                  })()
                   })
                 });
 
@@ -256,8 +254,7 @@
                   id: data.reminder.id,
                   transcript: currentTranscript,
                   scheduledFor: new Date(`${scheduleDate}T${scheduleTime}`),
-                  toEmail: userEmail,
-                  methods: [...notificationMethod]
+                  toEmail: userEmail
                 }]);
 
                 setCurrentTranscript('');
@@ -282,35 +279,18 @@
             };
 
             const isDisabled = () => {
-              if (!currentTranscript || !scheduleDate) return true;
-              if (notificationMethod.includes('email') && !userEmail) return true;
-              if (notificationMethod.includes('sms') && !phoneNumber) return true;
+              if (!currentTranscript || !scheduleDate || !userEmail) return true;
               return false;
             };
 
             const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             const formatTime = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-            
-            // Format phone number to E.164 (Twilio format: +1XXXXXXXXXX)
-            const formatPhoneNumber = (phone) => {
-              if (!phone) return '';
-              // Remove all non-digit characters
-              const digits = phone.replace(/\D/g, '');
-              // If it starts with 1, keep it; otherwise add 1
-              const withCountryCode = digits.startsWith('1') ? digits : `1${digits}`;
-              // Return in E.164 format
-              return `+${withCountryCode}`;
-            };
 
             return (
               <div className={isDarkMode ? 'bg-gray-950 text-white min-h-screen' : 'bg-white min-h-screen'}>
                 {showToast && (
                   <div className="fixed top-6 left-1/2 transform -translate-x-1/2 md:left-auto md:translate-x-0 md:right-6 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 text-center">
-                    ✅ Reminder scheduled! You'll receive {notificationMethod.includes('email') && notificationMethod.includes('sms') 
-                      ? 'an email and text' 
-                      : notificationMethod.includes('sms') 
-                        ? 'a text' 
-                        : 'an email'} at the scheduled time.
+                    ✅ Reminder scheduled! You'll receive an email at the scheduled time.
                   </div>
                 )}
 
@@ -326,10 +306,10 @@
                 <main className="max-w-3xl mx-auto px-6 py-16">
                   <div className="mb-20 text-center">
                     <h2 className="text-5xl font-bold mb-6">
-                      Capture a thought. Turn it into an email or text reminder.
+                      Turn voice memos into intelligent email reminders
                     </h2>
                     <p className={`text-xl ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Record a voice memo and schedule when you need to hear it again.
+                      Record a voice memo and get it emailed back to you at the perfect time.
                     </p>
                   </div>
 
@@ -508,57 +488,21 @@
 
                   {currentTranscript && !isTranscribing && (
                     <div ref={scheduleRef} className={`mb-16 p-12 rounded-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-gray-50 border border-gray-100'}`}>
-                      <h3 className="text-2xl font-semibold mb-8">📅 Schedule your reminder</h3>
+                      <h3 className="text-2xl font-semibold mb-8">📧 Schedule your email reminder</h3>
 
                       <div className="mb-6">
-                        <label className="block text-sm font-medium mb-3">Notification method</label>
-                        <div className="flex gap-3">
-                          {['email', 'sms'].map(method => (
-                            <button
-                              key={method}
-                              onClick={() => {
-                                if (notificationMethod.includes(method)) {
-                                  if (notificationMethod.length > 1) setNotificationMethod(notificationMethod.filter(m => m !== method));
-                                } else {
-                                  setNotificationMethod([...notificationMethod, method]);
-                                }
-                              }}
-                              className={`flex-1 px-4 py-3 rounded-lg border-2 ${notificationMethod.includes(method) ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-300'}`}
-                            >
-                              {method === 'email' ? '📧 Email' : '💬 SMS'}
-                            </button>
-                          ))}
-                        </div>
+                        <label className="block text-sm font-medium mb-3">Email address</label>
+                        <input
+                          type="email"
+                          value={userEmail}
+                          onChange={(e) => setUserEmail(e.target.value)}
+                          placeholder="your-email@example.com"
+                          className={`w-full px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+                        />
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          We'll send your reminder here
+                        </p>
                       </div>
-
-                      {notificationMethod.includes('email') && (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium mb-3">Send reminder to</label>
-                            <input
-                              type="email"
-                              value={userEmail}
-                              onChange={(e) => setUserEmail(e.target.value)}
-                              placeholder="your-email@example.com"
-                              className={`w-full px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                            />
-                        </div>
-                      )}
-
-                      {notificationMethod.includes('sms') && (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium mb-3">Phone number</label>
-                          <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="(404) 729-0244 or 404-729-0244"
-                            className={`w-full px-4 py-3 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                          />
-                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Any US format accepted (we'll format it automatically)
-                          </p>
-                        </div>
-                      )}
 
                       <div className="mb-6">
                         <div className="flex items-center justify-between mb-3">
@@ -622,8 +566,8 @@
                               <div className="flex-1">
                                 <p className="text-lg mb-4">{memo.transcript}</p>
                                 <p className="text-sm text-gray-500">
-                                  📅 {formatDate(memo.scheduledFor)} • {memo.methods.join(', ')}
-                                  {memo.toEmail && <span> • To: {memo.toEmail}</span>}
+                                  📅 {formatDate(memo.scheduledFor)}
+                                  {memo.toEmail && <span> • 📧 {memo.toEmail}</span>}
                                 </p>
                               </div>
                               <button
