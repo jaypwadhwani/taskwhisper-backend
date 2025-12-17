@@ -238,6 +238,7 @@
                     transcript: currentTranscript,
                     tasks: claudeAnalysis?.tasks || [],
                     emailDraft: claudeAnalysis?.emailDraft || '',
+                    emailSubject: claudeAnalysis?.emailSubject || 'TaskWhisper Reminder - Your Tasks',
                     scheduledFor: (() => {
                     // Create date in user's local timezone, then convert to UTC
                     const localDate = new Date(`${scheduleDate}T${scheduleTime}`);
@@ -437,7 +438,7 @@
                                     body: JSON.stringify({
                                       to: emailToSend,
                                       from: 'noreply@jaypwadhwani.com',
-                                      subject: 'TaskWhisper Reminder - Your Tasks',
+                                      subject: claudeAnalysis.emailSubject || 'TaskWhisper Reminder - Your Tasks',
                                       emailBody: claudeAnalysis.emailDraft,
                                       tasks: claudeAnalysis.tasks
                                     })

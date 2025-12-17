@@ -190,7 +190,8 @@ Extract and return a JSON object with:
    - priority: "urgent", "normal", or "low" (be smart about this!)
    - category: "work", "personal", "health", "shopping", "calls", or "other"
 2. emailDraft: A personalized reminder email for the first/main task
-3. suggestedSendTime: ISO 8601 timestamp in UTC for when to send the reminder. IMPORTANT: Calculate times as if the user is in a typical US timezone (EST/EDT). For example, if suggesting "tomorrow at 9am", calculate 9am EST converted to UTC. Current UTC time: ${new Date().toISOString()}
+3. emailSubject: A concise subject line (6-8 words max) that summarizes the main task. Make it action-oriented and clear. Examples: "Send Alan the BucketListers analysis", "Call doctor for appointment", "Buy groceries for dinner"
+4. suggestedSendTime: ISO 8601 timestamp in UTC for when to send the reminder. IMPORTANT: Calculate times as if the user is in a typical US timezone (EST/EDT). For example, if suggesting "tomorrow at 9am", calculate 9am EST converted to UTC. Current UTC time: ${new Date().toISOString()}
 
 Example format:
 {
@@ -203,6 +204,7 @@ Example format:
     }
   ],
   "emailDraft": "Hi! Just a friendly reminder about your doctor appointment tomorrow at 2pm. Don't forget to bring your insurance card!",
+  "emailSubject": "Call doctor for appointment tomorrow",
   "suggestedSendTime": "2025-12-06T12:00:00.000Z"
 }
 
@@ -240,6 +242,7 @@ app.post('/api/send-email', async (req, res) => {
     const { to, from, subject, emailBody, tasks } = req.body;
 
     console.log('📧 Sending email to:', to);
+    console.log('📧 Subject:', subject);
 
     if (!process.env.RESEND_API_KEY) {
       return res.status(500).json({
@@ -289,7 +292,7 @@ app.post('/api/send-email', async (req, res) => {
     const data = await resend.emails.send({
       from: 'TaskWhisper <noreply@jaypwadhwani.com>',
       to: to,
-      subject: subject || 'TaskWhisper Reminder',
+      subject: subject || 'TaskWhisper Reminder - Your Tasks',
       html: htmlContent,
     });
 
@@ -313,12 +316,13 @@ app.post('/api/send-email', async (req, res) => {
 // Save a scheduled reminder
 app.post('/api/reminders', async (req, res) => {
   try {
-    const { email, transcript, tasks, emailDraft, scheduledFor } = req.body;
+    const { email, transcript, tasks, emailDraft, emailSubject, scheduledFor } = req.body;
 
     const scheduledDate = new Date(scheduledFor);
     console.log('📅 Saving reminder for:', email);
     console.log('   Scheduled time (UTC):', scheduledFor);
     console.log('   Scheduled time (local):', scheduledDate.toString());
+    console.log('   Subject:', emailSubject);
 
     if (!supabase) {
       return res.status(500).json({ success: false, error: 'Database not configured' });
@@ -332,6 +336,7 @@ app.post('/api/reminders', async (req, res) => {
         transcript,
         tasks,
         email_draft: emailDraft,
+        email_subject: emailSubject || 'TaskWhisper Reminder - Your Tasks',
         scheduled_for: scheduledFor,
         notification_methods: ['email'],
         sent: false,
@@ -496,13 +501,15 @@ app.post('/api/reminders/send-due', async (req, res) => {
 
         // Send email
         if (reminder.email) {
+          const emailSubject = reminder.email_subject || 'TaskWhisper Reminder - Your Tasks';
           await resend.emails.send({
             from: 'TaskWhisper <noreply@jaypwadhwani.com>',
             to: reminder.email,
-            subject: 'TaskWhisper Reminder - Your Scheduled Tasks',
+            subject: emailSubject,
             html: htmlContent,
           });
           console.log('✅ Sent email to:', reminder.email);
+          console.log('   Subject:', emailSubject);
         }
 
         // Mark as sent
