@@ -162,8 +162,8 @@ app.post('/api/analyze-memo', async (req, res) => {
     }
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      model: 'claude-opus-5',
+      max_tokens: 8000,
       messages: [{
         role: 'user',
         content: `You are an intelligent task analyzer with smart prioritization. Analyze this voice memo transcript and extract actionable information.
@@ -212,7 +212,12 @@ Respond ONLY with valid JSON, no other text.`
       }]
     });
 
-    const responseText = message.content[0].text;
+    // Opus 5 thinks by default, so the first content block may be a thinking block.
+    const textBlock = message.content.find((block) => block.type === 'text');
+    if (!textBlock) {
+      throw new Error(`Claude returned no text block (stop_reason: ${message.stop_reason})`);
+    }
+    const responseText = textBlock.text;
     console.log('🤖 Claude raw response:', responseText);
 
     let cleanedResponse = responseText.trim();
