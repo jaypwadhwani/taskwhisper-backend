@@ -76,6 +76,42 @@ app.get('/', (req, res) => {
   });
 });
 
+// Node's fetch reports every network problem as the useless message "fetch failed".
+// The real reason (ENOTFOUND, ECONNREFUSED, TLS failure) lives on err.cause.
+function describeError(err) {
+  const parts = [];
+  let current = err;
+  const seen = new Set();
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const code = current.code ? ` (${current.code})` : '';
+    const message = current.message || String(current);
+    if (!parts.includes(message + code)) parts.push(message + code);
+    current = current.cause;
+  }
+  return parts.join(' <- ');
+}
+
+// Reports whether the backend can actually reach Supabase. Hostname only, never the key.
+app.get('/api/db-check', async (req, res) => {
+  const host = process.env.SUPABASE_URL
+    ? (() => { try { return new URL(process.env.SUPABASE_URL).host; } catch { return 'unparseable SUPABASE_URL'; } })()
+    : null;
+
+  if (!supabase) {
+    return res.json({ configured: false, host, ok: false, error: 'SUPABASE_URL or SUPABASE_KEY missing' });
+  }
+
+  try {
+    const { error } = await supabase.from('reminders').select('id').limit(1);
+    if (error) throw error;
+    res.json({ configured: true, host, ok: true });
+  } catch (error) {
+    console.error('DB check failed:', describeError(error));
+    res.json({ configured: true, host, ok: false, error: describeError(error) });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
@@ -236,7 +272,7 @@ Respond ONLY with valid JSON, no other text.`
     console.error('❌ Error analyzing with Claude:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: describeError(error)
     });
   }
 });
@@ -313,7 +349,7 @@ app.post('/api/send-email', async (req, res) => {
     console.error('❌ Error sending email:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: describeError(error)
     });
   }
 });
@@ -359,7 +395,7 @@ app.post('/api/reminders', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error saving reminder:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: describeError(error) });
   }
 });
 
@@ -384,7 +420,7 @@ app.get('/api/reminders', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error fetching reminders:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: describeError(error) });
   }
 });
 
@@ -412,7 +448,7 @@ app.post('/api/reminders/:id/complete', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error completing reminder:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: describeError(error) });
   }
 });
 
@@ -446,7 +482,7 @@ app.post('/api/reminders/:id/reschedule', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error rescheduling reminder:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: describeError(error) });
   }
 });
 
@@ -615,7 +651,7 @@ app.post('/api/reminders/send-due', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error processing reminders:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: describeError(error) });
   }
 });
 
